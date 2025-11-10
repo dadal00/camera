@@ -3,6 +3,16 @@ name = "camera"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+pixels = "0.15.0"
+winit = "0.29"
+
 [dependencies.nokhwa]
 version = "0.10"
 features = ["input-native", "output-threaded"]
+
+[features]
+default = [
+    "debug"
+]
+debug = []
