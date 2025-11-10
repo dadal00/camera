@@ -1,16 +1,28 @@
+/*
+ * Copyright 2022 l1npengtul <l1npengtul@protonmail.com> / The Nokhwa Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 use nokhwa::{
     CallbackCamera, nokhwa_initialize,
     pixel_format::{RgbAFormat, RgbFormat},
     query,
     utils::{ApiBackend, RequestedFormat, RequestedFormatType},
 };
-#[cfg(feature = "debug")]
-use {
-    pixels::{Pixels, SurfaceTexture},
-    winit::{dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder},
-};
 
 fn main() {
+    // only needs to be run on OSX
     nokhwa_initialize(|granted| {
         println!("User said {}", granted);
     });
@@ -21,64 +33,21 @@ fn main() {
 
     let first_camera = cameras.first().unwrap();
 
-    let mut counter = 0;
-    let mut threaded = CallbackCamera::new(first_camera.index().clone(), format, move |buffer| {
-        println!("{}, {}", buffer.source_frame_format(), counter);
-
-        counter += 1;
+    let mut threaded = CallbackCamera::new(first_camera.index().clone(), format, |buffer| {
+        let image = buffer.decode_image::<RgbAFormat>().unwrap();
+        println!("{}x{} {}", image.width(), image.height(), image.len());
     })
     .unwrap();
-
     threaded.open_stream().unwrap();
-    #[cfg(not(feature = "debug"))]
+    #[allow(clippy::empty_loop)]
     loop {
         let frame = threaded.poll_frame().unwrap();
         let image = frame.decode_image::<RgbAFormat>().unwrap();
-        // println!(
-        //     "{}x{} {} naripoggers",
-        //     image.width(),
-        //     image.height(),
-        //     image.len()
-        // );
-    }
-
-    #[cfg(feature = "debug")]
-    {
-        let resolution = threaded.resolution().unwrap();
-        let width = resolution.width();
-        let height = resolution.height();
-
-        let event_loop = EventLoop::new().unwrap();
-        let window = {
-            let size = LogicalSize::new(width as f64, height as f64);
-            WindowBuilder::new()
-                .with_title("Camera")
-                .with_inner_size(size)
-                .with_min_inner_size(size)
-                .build(&event_loop)
-                .unwrap()
-        };
-
-        let mut pixels = {
-            let window_size = window.inner_size();
-            let surface_texture =
-                SurfaceTexture::new(window_size.width, window_size.height, &window);
-            Pixels::new(width, height, surface_texture).unwrap()
-        };
-
-        let res = event_loop.run(|event, elwt| {
-            if let Err(..) = threaded
-                .poll_frame()
-                .unwrap()
-                .decode_image_to_buffer::<RgbAFormat>(pixels.frame_mut())
-            {
-                println!("Error decoding frame!");
-            }
-
-            if let Err(..) = pixels.render() {
-                elwt.exit();
-                return;
-            }
-        });
+        println!(
+            "{}x{} {} naripoggers",
+            image.width(),
+            image.height(),
+            image.len()
+        );
     }
 }
