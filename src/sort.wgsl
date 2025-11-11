@@ -16,7 +16,6 @@ fn odd_even_sort(
     let num_items = arrayLength(&data);
     let pair_index = gid.x;
 
-    // even
     let a = pair_index * 2u + odd_even_flag;
     let b = a + 1u;
 
