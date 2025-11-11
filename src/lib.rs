@@ -3,6 +3,7 @@ use std::time::Instant;
 use anyhow::Result;
 use bytemuck::{Pod, cast_slice};
 use flume::bounded;
+use minifb::{Window, WindowOptions};
 use nokhwa::{
     CallbackCamera, nokhwa_initialize,
     pixel_format::{RgbAFormat, RgbFormat},
@@ -14,8 +15,10 @@ use wgpu::{
     *,
 };
 
+const WIDTH: usize = 1920;
+const HEIGHT: usize = 1080;
+
 pub fn start_camera() {
-    // only needs to be run on OSX
     nokhwa_initialize(|granted| {
         println!("User said {}", granted);
     });
@@ -26,22 +29,41 @@ pub fn start_camera() {
 
     let first_camera = cameras.first().unwrap();
 
-    let mut threaded = CallbackCamera::new(first_camera.index().clone(), format, |buffer| {
+    let (tx, rx) = bounded(1);
+
+    let mut threaded = CallbackCamera::new(first_camera.index().clone(), format, move |buffer| {
+        // Buffer is a YUYV format so 4 bytes for 2 pixels
+        // let start = Instant::now();
         let image = buffer.decode_image::<RgbAFormat>().unwrap();
-        println!("{}x{} {}", image.width(), image.height(), image.len());
+
+        let buffer: Vec<u32> = image
+            .chunks(4)
+            .map(|px| {
+                let r = px[0] as u32;
+                let g = px[1] as u32;
+                let b = px[2] as u32;
+                let a = px[3] as u32;
+                (a << 24) | (r << 16) | (g << 8) | b
+            })
+            .collect();
+        // println!("Async took {:?}", start.elapsed());
+
+        // Target is &[u32], RGBA so 4 bytes for 1 pixel
+
+        let _ = tx.send(buffer);
     })
     .unwrap();
+
     threaded.open_stream().unwrap();
-    #[allow(clippy::empty_loop)] // keep it running
+
+    let mut window = Window::new("Camera", WIDTH, HEIGHT, WindowOptions::default()).unwrap();
+
+    println!("Keeping camera on...");
+    #[allow(clippy::empty_loop)]
     loop {
-        let frame = threaded.poll_frame().unwrap();
-        let image = frame.decode_image::<RgbAFormat>().unwrap();
-        println!(
-            "{}x{} {} naripoggers",
-            image.width(),
-            image.height(),
-            image.len()
-        );
+        if let Ok(buffer) = rx.try_recv() {
+            window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+        }
     }
 }
 
