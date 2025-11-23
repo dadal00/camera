@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-pixels = "0.15.0"
-winit = "0.29"
+anyhow = "1.0.99"
+bytemuck = "1.23.2"
+glam = "0.30.5"
+log = "0.4.28"
+pollster = "0.4.0"
+wgpu = "27.0.0"
+env_logger = "0.11.8"
+crossbeam = "0.8.4"
+flume = "0.11.1"
+minifb = "0.28.0"
 
 [dependencies.nokhwa]
 version = "0.10"
 features = ["input-native", "output-threaded"]
-
-[features]
-default = [
-    "debug"
-]
-debug = []
